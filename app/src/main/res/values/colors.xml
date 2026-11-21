@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Telegram-style dark theme (v0.2): black canvas, dark pill panels. -->
+    <color name="editor_black">#000000</color>
+    <color name="editor_panel">#262628</color>
+    <color name="editor_chip">#1C1C1E</color>
+    <color name="editor_text">#FFFFFF</color>
+    <color name="editor_text_dim">#8E8E93</color>
     <color name="brand_green">#0E7C66</color>
     <color name="brand_green_dark">#0A5C4C</color>
 </resources>
