@@ -30,20 +30,20 @@
     <string name="add">Add</string>
     <string name="more_colors">More colours</string>
 
-    <!-- Filter preset names (PhotoFilter values, PhotoEditor 3.1.1). -->
-    <string name="filter_none">None</string>
-    <string name="filter_auto_fix">Auto Fix</string>
-    <string name="filter_brightness">Brightness</string>
-    <string name="filter_contrast">Contrast</string>
-    <string name="filter_sepia">Sepia</string>
-    <string name="filter_black_white">B&amp;W</string>
-    <string name="filter_saturate">Saturate</string>
-    <string name="filter_temperature">Warm</string>
-    <string name="filter_vignette">Vignette</string>
-    <string name="filter_gray_scale">Gray</string>
-    <string name="filter_current">Filter: %1$s</string>
+    <!-- Adjust panel (v0.3): real GPUImage sliders. -->
+    <string name="adjust_title">Adjust</string>
+    <string name="enhance">Enhance</string>
+    <string name="enhance_auto">AUTO</string>
+    <string name="adjust_exposure">Exposure</string>
+    <string name="adjust_contrast">Contrast</string>
+    <string name="adjust_saturation">Saturation</string>
+    <string name="adjust_sharpness">Sharpness</string>
+    <string name="adjust_warmth">Warmth</string>
+    <string name="adjust_current">%1$s %2$s</string>
 
     <string name="crop_failed">Crop failed</string>
+    <string name="load_failed">Could not load the photo</string>
+    <string name="adjust_failed">Could not apply adjustments</string>
     <string name="save_failed">Could not save the image</string>
     <string name="saved_to_gallery">Saved to gallery</string>
 </resources>
