@@ -277,3 +277,168 @@ excluded the caption field and SD/HD — messaging parts.
   actually look on the phone, and the visual layout on the A54.
   The old v0.1 text-button UI is fully replaced; nothing of it
   remains except the identical pick → crop → edit → save flow.
+
+## v0.3 — fix the v0.2 "no edit options after picking" bug + real adjust sliders (2026-11-22)
+
+The user tested v0.2 on the A54 and reported a very big bug: after
+picking a photo from the gallery, NO edit options are available — it
+seems only crop is possible, with no confirm or cancel. They asked
+for Telegram's bottom options (crop / brush / text / adjust) to be
+available immediately after picking, and for professional sliders in
+v0.3.
+
+### Bug root cause (found, not guessed)
+
+Two causes stacked:
+
+1. **Our own flow (certain, from our code).** `pickImageLauncher`
+   called `startCrop(uri)` immediately — crop was FORCED as the first
+   step. `cropImageLauncher` only called `loadImage()` (which finally
+   shows `topBar` + `bottomContainer`) on a successful crop; on
+   cancel with no error it did nothing and the user stayed on the
+   empty state. So the toolbar only appeared after a successful
+   crop, and the user experienced the CanHub crop screen as the
+   whole app.
+2. **CanHub's CropImageActivity controls (documented cause).** The
+   library's own wiki ("Activity Visual Customization") states the
+   activity "is derived from `AppCompatActivity` which requires that
+   its theme to derive from `Theme.AppCompat`. If your main theme is
+   one of `*.NoActionBar` sub-theme's you must override
+   `CropImageActivity` theme in the manifest with theme that includes
+   action bar." Issue #142 (ArthurHub): "No toolbar at
+   CropImageActivity… It's because of your theme, if you are using
+   NoActionBar." The Crop confirm control is an ActionBar menu item
+   ("Crop" menu item, text overridable via `crop_image_menu_crop`
+   string or `setCropMenuCropButtonTitle()`; icon colour via
+   `setActivityMenuIconColor()`), and cancel is the toolbar back
+   arrow. Our app uses `Theme.Material3.DayNight.NoActionBar`
+   (`themes.xml`) and never declared `CropImageActivity` in the
+   manifest, so its ActionBar — hosting Crop confirm and
+   back/cancel — never appears. The user saw only the crop view with
+   no confirm/cancel. This matches the reported symptom exactly.
+
+### The fix
+
+- **Pick loads directly into the editor.** `pickImageLauncher` now
+  calls `loadImage(uri)`: the photo is decoded (downscaled to max
+  2048 px on the long side, EXIF rotation applied via
+  `android.media.ExifInterface`, API 24+ = our minSdk, no new
+  dependency) on a background thread, then shown with the full
+  toolbar (crop / brush / text / adjust / save) immediately. No
+  forced crop first.
+- **Crop is a toolbar tool, on our own screen.** `CropImageView` is
+  embedded in a full-screen `cropContainer` in `activity_main.xml`
+  with our own CANCEL / DONE buttons — always visible, no ActionBar
+  needed. This also closes the old risk item 2 below (CanHub marks
+  `CropImageContract` deprecated in favour of embedding
+  `CropImageView`; the migration planned for v0.2 is done here).
+  DONE crops the image **as currently displayed** (adjustments baked
+  in); drawings/text were placed on the old photo, so they are
+  cleared and adjustments reset to neutral for the new base.
+  CANCEL changes nothing. System back also leaves the crop screen
+  first, then closes a panel, otherwise finishes the app. The user
+  is never left in a screen with no way out.
+- `CropImageContract` / `CropImageContractOptions` /
+  `CropImageOptions` are gone entirely; `currentImageUri` is gone
+  (save / draw / text / adjust now guard on `baseBitmap != null`).
+
+### Real sliders — GPUImage for Android 2.1.0 (Apache 2.0)
+
+- **Version verified:** latest stable on Maven Central is **2.1.0**
+  (`jp.co.cyberagent.android:gpuimage:2.1.0`, released 2020-09-21;
+  confirmed 22 Nov 2026 via search.maven.org /
+  central.sonatype.com; repo now cats-oss/android-gpuimage).
+  No newer stable exists.
+- **API verified from the actual 2.1.0 AAR** (downloaded from
+  repo1.maven.org, `classes.jar` inspected — not just docs):
+  `GPUImage(Context)`, `setImage(Bitmap)`, `setFilter(GPUImageFilter)`,
+  `getBitmapWithFilterApplied()` and
+  `getBitmapWithFilterApplied(Bitmap)`; `GPUImageFilterGroup(List<GPUImageFilter>)`;
+  `GPUImageExposureFilter(float)`, `GPUImageContrastFilter(float)`,
+  `GPUImageSaturationFilter(float)`, `GPUImageSharpenFilter(float)`,
+  `GPUImageWhiteBalanceFilter(float temperature, float tint)`.
+  Filter ranges (Android port mirrors the iOS docs): Exposure
+  −10..+10 (default 0), Contrast 0..4 (default 1), Saturation
+  default 1, Sharpen −4..+4 (default 0), WhiteBalance temperature
+  4000–7000 K (default 5000), tint −200..200 (default 0).
+- **Sliders** (Telegram adjust panel, without fake controls):
+  Exposure −2.0..+2.0, Contrast 0.0..2.0, Saturation 0.0..2.0,
+  Sharpness 0.0..2.0, Warmth 4000–7000 K — each a real Android
+  SeekBar driving a `GPUImageFilterGroup` of the five filters above,
+  live preview while dragging (60 ms debounce, renders serialised
+  on one GPU thread via `Dispatchers.Default.limitedParallelism(1)`,
+  a newer render cancels an older one via a sequence token).
+  CANCEL reverts to the values before the panel opened, DONE
+  confirms. The summary line shows the first non-neutral slider
+  (e.g. "Exposure +0.40").
+- **Enhance AUTO — honest note.** GPUImage has no single Enhance
+  filter, so AUTO applies a tuned combination, exactly:
+  Exposure **+0.10**, Contrast **1.18**, Saturation **1.20**,
+  Sharpness **0.40**, Warmth **5200 K**. The sliders show those
+  values after tapping AUTO, so the user can see and adjust them.
+- **Data flow (verified in code, not assumed).** Adjustments always
+  start from `baseBitmap` (the picked/cropped photo), never
+  compounded on a previous render; neutral values short-circuit to
+  showing `baseBitmap` itself with no GPU work. Drawings and text
+  stay on top via PhotoEditor (`PhotoEditorView.source` is the
+  ImageView that shows the adjusted preview); saving still goes
+  through `photoEditor.saveAsBitmap()`, which captures the source
+  ImageView plus all overlay views. `clearAll()` now resets the
+  sliders to neutral as well as clearing drawings/text.
+- **CropImageView API verified from the actual 4.7.0 AAR** in the
+  same way: `setImageBitmap(Bitmap)`, `getCroppedImage()`,
+  `setGuidelines(Guidelines)` / `Guidelines.ON` all exist.
+- The v0.2 filter-preset chips are gone (`PhotoFilter`,
+  `setFilterEffect`, `filter_*` strings all removed). PhotoEditor
+  3.1.1 is still used for brush / arrow / line / text / undo / redo
+  only.
+
+### Files changed in v0.3
+
+- `app/build.gradle` — versionCode 3, versionName 0.3; added
+  `jp.co.cyberagent.android:gpuimage:2.1.0`.
+- `app/src/main/java/com/imagram/editor/MainActivity.kt` — full
+  rewrite of the pick/crop/adjust flow (see above); draw panel,
+  colour dots, text dialog and save path unchanged in behaviour.
+- `app/src/main/res/layout/activity_main.xml` — adjust panel rebuilt
+  as Enhance AUTO + 5 sliders (ids: `btnEnhanceAuto`,
+  `seekExposure`/`tvExposureValue`, `seekContrast`/`tvContrastValue`,
+  `seekSaturation`/`tvSaturationValue`,
+  `seekSharpness`/`tvSharpnessValue`, `seekWarmth`/`tvWarmthValue`);
+  new full-screen `cropContainer` with `cropImageView` +
+  `btnCropCancel` / `btnCropDone`.
+- `app/src/main/res/values/strings.xml` — filter strings removed,
+  adjust strings added (`enhance`, `enhance_auto`,
+  `adjust_exposure/contrast/saturation/sharpness/warmth`,
+  `adjust_current`, `load_failed`, `adjust_failed`).
+- `.github/workflows/build-android.yml` — artifact renamed to
+  `imagram-editor-v0.3-debug-apk`.
+- `README.md`, `THIRD-PARTY-NOTICES.md` (GPUImage entry),
+  `BUILD-NOTES.md` (this section).
+
+### Local verification (no build yet — same as v0.1/v0.2)
+
+- All XML files parse. Every `binding.*` id exists in
+  `activity_main.xml` (44 real ids; `root` and the
+  `ActivityMainBinding` class name are the only regex false
+  positives). Every `R.string.*` / `R.drawable.*` / `R.color.*`
+  used in code and layout is defined — including
+  `@color/tool_icon_tint`, which lives in
+  `res/color/tool_icon_tint.xml` (a selector), not in
+  `values/colors.xml`. `photoEditor.setBrushColor` appears nowhere
+  (only our own private `setBrushColor()` helper, as in v0.1/v0.2).
+  Kotlin braces 138/138, parens 374/374. Removed APIs confirmed
+  gone: `PhotoFilter`, `CropImageContract`, `currentImageUri`,
+  `startCrop`, `setFilterEffect`, `filter_*` strings.
+- **Not verified:** the build itself (no JDK/SDK here — the GitHub
+  Actions run is the first real check), the GPUImage render path at
+  runtime (the `setImage` → `setFilter` → `getBitmapWithFilterApplied`
+  pattern is the library's documented one and the method signatures
+  were verified in the published AAR, but first-run behaviour on a
+  real phone — e.g. PixelBuffer sizing after `setImage` on a new
+  bitmap — is untested), and how the sliders and the crop screen
+  actually look and feel on the A54. If the CI build fails, the most
+  likely spots are the GPUImage call chain or the `croppedImage`
+  property — both were verified against the published AARs, so a
+  failure there would mean a Kotlin-vs-Java signature surprise, and
+  the log will say exactly which line.
