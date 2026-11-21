@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark rounded pill bar, like Telegram's bottom toolbar. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#262628" />
+    <corners android:radius="28dp" />
+</shape>

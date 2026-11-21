@@ -185,3 +185,95 @@ Files changed in this fix: `MainActivity.kt` and `BUILD-NOTES.md`
 (this section). Ready for browser re-upload to Imagram-Editor
 (commit message suggestion: "Fix v0.1 compile errors: ShapeType.Arrow()
 and withShapeColor").
+
+## v0.2 — Telegram-style UI redesign (2026-11-22)
+
+The user tested v0.1 on the A54 and called the UI (three rows of big
+green pill text buttons on a white screen) the ugliest they had ever
+seen. Three real editor UIs were researched on GitHub with screenshots
+(see `UI-RESEARCH.md` + `ui-options/`); the user chose **Option 1,
+Telegram style**, from their own Telegram screenshots, and explicitly
+excluded the caption field and SD/HD — messaging parts.
+
+### What the new UI looks like
+
+- **Dark, photo fullscreen.** Black background; `PhotoEditorView`
+  fills the whole screen. No white page, no text buttons.
+- **Top bar** (only when a photo is loaded): back arrow (closes an
+  open panel, otherwise picks another photo), undo, redo, and
+  "Clear All" (only while the draw panel is open).
+- **Main toolbar** (bottom): a rounded dark pill with 4 icon buttons
+  — crop, brush, text, adjust — plus a round teal **save** circle to
+  its right, where Telegram has the blue send button.
+- **Draw panel** (opens from the brush icon): pill with a rainbow
+  colour-wheel button (opens a "More colours" dialog) + brush / arrow
+  / line icons; a row of 8 colour dots below it (selected dot gets a
+  white ring); bottom row ✕ / DRAW / TEXT / ✓, like the user's
+  screenshot. TEXT opens the add-text dialog. No STICKER tab.
+- **Adjust panel** (opens from the adjust icon): a horizontal strip of
+  filter-preset chips + CANCEL / current filter / DONE at the bottom,
+  like the user's screenshot.
+- **Empty state:** dim photo icon + "Pick a photo to start editing"
+  + a teal "Pick photo" pill, on black.
+
+### Honest mapping notes (what Telegram has that the library does not)
+
+- **Adjust sliders are NOT faked.** Telegram's Enhance / Exposure /
+  Contrast are continuous sliders; PhotoEditor 3.1.1 has no slider
+  API at all — `setFilterEffect(PhotoFilter)` applies one fixed
+  preset. The full enum was verified from the library source at tag
+  `v.3.1.1`
+  (`photoeditor/.../PhotoFilter.kt`): NONE, AUTO_FIX, BLACK_WHITE,
+  BRIGHTNESS, CONTRAST, CROSS_PROCESS, DOCUMENTARY, DUE_TONE,
+  FILL_LIGHT, FISH_EYE, FLIP_VERTICAL, FLIP_HORIZONTAL, GRAIN,
+  GRAY_SCALE, LOMISH, NEGATIVE, POSTERIZE, ROTATE, SATURATE, SEPIA,
+  SHARPEN, TEMPERATURE, TINT, VIGNETTE. The panel offers 10 of them
+  as chips (None, Auto Fix, Brightness, Contrast, Sepia, B&W,
+  Saturate, Warm, Vignette, Gray), applied live on tap; CANCEL
+  restores the filter that was active before opening the panel.
+- **Clear All** uses `photoEditor.clearAllViews()`, which in 3.1.1
+  calls `mBoxHelper.clearAllViews(drawingView)` — it clears brush
+  strokes and added text views (verified in `PhotoEditorImpl.kt`
+  lines 382–386). It also resets the filter to NONE.
+- **Icons are hand-written vectors** (Material-style paths) in
+  `res/drawable/` — 13 icons + colour wheel (six rainbow arcs +
+  red centre dot), dots, pill/chip backgrounds. They were NOT
+  rendered or previewed locally; check them on the A54.
+- No new dependency was added (Material + AppCompat were already
+  there). No Telegram code is used — the look is imitated, the code
+  is all PhotoEditor 3.1.1 + CanHub 4.7.0 + our own UI.
+
+### Files changed in v0.2
+
+- `app/build.gradle` — versionCode 2, versionName 0.2.
+- `app/src/main/java/com/imagram/editor/MainActivity.kt` — full
+  rewrite (panels, dots, chips, more-colours dialog, same
+  pick → crop → edit → save flow, same verified 3.1.1 API usage).
+- `app/src/main/res/layout/activity_main.xml` — full rewrite.
+- `app/src/main/res/values/{strings,colors,themes}.xml` — dark
+  palette, new strings, black window background.
+- `app/src/main/res/color/tool_icon_tint.xml` — NEW (selected white /
+  unselected grey icon tint).
+- `app/src/main/res/drawable/` — NEW: `ic_back`, `ic_undo`,
+  `ic_redo`, `ic_crop`, `ic_brush`, `ic_text`, `ic_tune`,
+  `ic_check`, `ic_close`, `ic_arrow_ne`, `ic_line`, `ic_save`,
+  `ic_image`, `ic_color_wheel`, `dot`, `dot_ring`, `pill_bg`,
+  `pick_pill`, `chip_bg`, `chip_bg_selected`, `save_circle`.
+- `.github/workflows/build-android.yml` — artifact renamed to
+  `imagram-editor-v0.2-debug-apk`.
+- `README.md`, `UI-RESEARCH.md` (choice note), `BUILD-NOTES.md`
+  (this section).
+
+### Local verification (no build yet — same as v0.1)
+
+- All XML files parse. Every `binding.*` id exists in
+  `activity_main.xml` (31 ids); every `R.string.*` / `R.drawable.*` /
+  `R.color.*` used in code and layout is defined;
+  `photoEditor.setBrushColor` appears nowhere (only our own private
+  `setBrushColor()` helper, as in v0.1). Kotlin braces 88/88,
+  parens 252/252.
+- **Not verified:** the build itself (no JDK/SDK here — the GitHub
+  Actions run is the first real check), how the hand-written icons
+  actually look on the phone, and the visual layout on the A54.
+  The old v0.1 text-button UI is fully replaced; nothing of it
+  remains except the identical pick → crop → edit → save flow.

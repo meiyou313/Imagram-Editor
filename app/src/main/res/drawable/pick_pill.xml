@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Teal rounded pill (empty-state "Pick photo" button). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#0E7C66" />
+    <corners android:radius="28dp" />
+</shape>

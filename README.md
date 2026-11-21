@@ -22,13 +22,16 @@ add text, apply a filter, undo/redo, and save the result to the gallery.
 
 The project builds on GitHub Actions (`.github/workflows/build-android.yml`):
 JDK 17, Android SDK, `gradle assembleDebug`. Every push to `main` uploads
-the debug APK as a build artifact (`imagram-editor-v0.1-debug-apk`).
+the debug APK as a build artifact (`imagram-editor-v0.2-debug-apk`).
 
 ## Status
 
-v0.1 — first debug build for testing on a Samsung Galaxy A54 (Android 13).
-See [BUILD-NOTES.md](BUILD-NOTES.md) for the verified library versions,
-the project structure, and the known risks for the first build.
+v0.2 — Telegram-style UI redesign (dark, photo fullscreen, icon pill
+toolbars), built from the user's own Telegram screenshots and chosen by
+the user from three researched options (see [UI-RESEARCH.md](UI-RESEARCH.md)).
+No caption field, no SD/HD button, no send button, no stickers — those
+are messaging parts. See [BUILD-NOTES.md](BUILD-NOTES.md) for the verified
+library versions, the project structure, and the known risks.
 
 ## License
 
