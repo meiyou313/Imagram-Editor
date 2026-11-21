@@ -125,7 +125,7 @@ class MainActivity : AppCompatActivity() {
         currentTool = tool
         when (tool) {
             Tool.BRUSH -> applyShape(ShapeType.Brush)
-            Tool.ARROW -> applyShape(ShapeType.Arrow)
+            Tool.ARROW -> applyShape(ShapeType.Arrow())
             Tool.LINE -> applyShape(ShapeType.Line)
             Tool.NONE -> photoEditor.setBrushDrawingMode(false)
         }
@@ -137,14 +137,18 @@ class MainActivity : AppCompatActivity() {
             .withShapeOpacity(100)
             .withShapeType(type)
             .withShapeSize(24f)
+            .withShapeColor(brushColor)
         photoEditor.setShape(shapeBuilder)
-        photoEditor.setBrushColor(brushColor)
         photoEditor.setBrushDrawingMode(true)
     }
 
     private fun setBrushColor(color: Int) {
         brushColor = color
-        photoEditor.setBrushColor(color)
+        // In PhotoEditor 3.1.1 there is no setBrushColor() method: colour
+        // lives on the ShapeBuilder (withShapeColor) and setShape() replaces
+        // the whole builder, so re-apply the active tool for the new colour
+        // to take effect immediately.
+        if (currentTool != Tool.NONE) selectTool(currentTool)
     }
 
     private fun updateToolButtons() {
