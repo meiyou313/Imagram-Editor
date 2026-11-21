@@ -100,9 +100,10 @@ from this VM; do **not** create a release yet).
 
 ## Known risks for the first build (check the CI log first)
 
-1. `setBrushColor()` is deprecated since PhotoEditor 1.5.1 (README
-   still documents it; the changelog never records its removal).
-   If CI reports it missing, replace it with `ShapeBuilder.withShapeColor()`.
+1. ~~`setBrushColor()` is deprecated since PhotoEditor 1.5.1~~ —
+   CONFIRMED REMOVED in 3.1.1: there is no `setBrushColor()` method at
+   all (see the v0.1 fix section below). The README still documents
+   it — do not trust the README for this API.
 2. CanHub marks `CropImageContract` deprecated in favour of embedding
    `CropImageView` in your own activity ("will be removed in future
    versions") — it is still the documented path in the 4.7.0 README
@@ -127,3 +128,60 @@ from this VM; do **not** create a release yet).
    real APK size.
 4. Then iterate like Minab: user reports fixes one by one, new
    version per fix round.
+
+## v0.1 fix — 3 compile errors (2026-11-21, after first CI run)
+
+First GitHub Actions build (run 44932092663, commit f252890) failed in
+`:app:compileDebugKotlin` with exactly 3 errors, all in MainActivity.kt.
+The real API was checked against the library source itself — tag
+`v.3.1.1`, commit `41d27636ab56e8185c2339869f865b8134ae0e82`
+(github.com/burhanrashid52/PhotoEditor) — not the README, which was
+wrong about `setBrushColor`.
+
+Real API found in 3.1.1:
+
+- `ShapeType` is a `sealed interface`
+  (`photoeditor/.../shape/ShapeType.kt`): `Brush`, `Oval`, `Rectangle`
+  and `Line` are `object`s, but `Arrow` is a **class** —
+  `class Arrow(val pointerLocation: ArrowPointerLocation =
+  ArrowPointerLocation.START) : ShapeType`. It must be instantiated:
+  `ShapeType.Arrow()`. (`ArrowPointerLocation` is
+  `enum class { START, END, BOTH }`.)
+- There is **no** `setBrushColor()` method in 3.1.1. Colour is a
+  deprecated Kotlin `var` property on the interface —
+  `@set:Deprecated("use setShape of a ShapeBuilder") var brushColor: Int`
+  (`PhotoEditor.kt`, ~line 149) — implemented in `PhotoEditorImpl.kt`
+  as get/set on `drawingView.currentShapeBuilder`
+  (`withShapeColor(color)`). From Kotlin the property syntax
+  `photoEditor.brushColor = color` would work, but the documented
+  non-deprecated path is `ShapeBuilder.withShapeColor(@ColorInt color)`
+  (`ShapeBuilder.kt`), and `setShape()` (`PhotoEditorImpl.kt:278`)
+  **replaces** `drawingView.currentShapeBuilder` wholesale — so the
+  colour must be part of the builder passed to `setShape()`.
+
+Errors and fix (MainActivity.kt only):
+
+1. Line 128:48 — `ShapeType.Arrow` used as a value, but `Arrow` is a
+   class. Fixed: `applyShape(ShapeType.Arrow())`.
+2. Line 141:21 — `photoEditor.setBrushColor(brushColor)` unresolved.
+   Fixed: removed; `applyShape()` now builds the shape with
+   `.withShapeColor(brushColor)` before `setShape()`.
+3. Line 147:21 — `photoEditor.setBrushColor(color)` unresolved (private
+   `setBrushColor()`). Fixed: it now stores the colour in the
+   `brushColor` field and, if a tool is active, re-applies that tool
+   (`selectTool(currentTool)`) so the new colour takes effect
+   immediately; the colour is also baked into every new shape via
+   `applyShape()`. Colour changes therefore work whether the user
+   picks the colour before or after choosing Brush/Arrow/Line.
+
+Local verification after the fix: braces 52/52, parens 129/129;
+`photoEditor.setBrushColor` no longer appears anywhere (the only
+`setBrushColor` refs left are our own private function and its four
+button calls); all `R.string.*` used are defined; every `binding.*`
+id exists in `activity_main.xml`. No green build claimed yet — the
+fix must still pass the GitHub Actions run after re-upload.
+
+Files changed in this fix: `MainActivity.kt` and `BUILD-NOTES.md`
+(this section). Ready for browser re-upload to Imagram-Editor
+(commit message suggestion: "Fix v0.1 compile errors: ShapeType.Arrow()
+and withShapeColor").
