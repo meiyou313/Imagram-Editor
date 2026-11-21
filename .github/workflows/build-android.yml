@@ -3,7 +3,7 @@
 # Builds the debug APK with GitHub Actions (no local SDK needed).
 # Triggers on push to main, pull requests, and manual dispatch.
 # No signing, no release step: the APK is uploaded as a build
-# artifact for testing (v0.1 is a debug build for the Samsung A54).
+# artifact for testing (v0.3 is a debug build for the Samsung A54).
 name: Imagram Editor Android (Debug)
 
 on:
@@ -50,7 +50,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: imagram-editor-v0.2-debug-apk
+          name: imagram-editor-v0.3-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
